@@ -31,7 +31,6 @@ def get_new_zillow_data():
             calculatedfinishedsquarefeet AS square_feet,
             garagecarcnt as garage,
             poolcnt as pool,
-            airconditioningtypeid as ac,
             lotsizesquarefeet as lot_size,
             regionidzip as zip,
             yearbuilt AS year_built,
@@ -67,6 +66,8 @@ def fill_na(df):
 def optimize_types(df):
     # Convert some columns to integers
     # fips, yearbuilt, and bedrooms can be integers
+    df["garage"] = df["garage"].astype(int)
+    df["pool"] = df["pool"].astype(int)
     df["fed_code"] = df["fed_code"].astype(int)
     df["bedrooms"] = df["bedrooms"].astype(int)
     df["bathrooms"] = df["bathrooms"].astype(int)
@@ -98,6 +99,8 @@ def wrangle_zillow():
     df = fill_na(df)
     df = optimize_types(df)
     df = replace_nan(df)
+    df = add_info(df)
+    df = handle_outliers(df)
     df.to_csv('zillow_values.csv')
 
     return df
