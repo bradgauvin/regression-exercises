@@ -34,7 +34,6 @@ def get_new_zillow_data():
             lotsizesquarefeet as lot_size,
             regionidzip as zip,
             yearbuilt AS year_built,
-            assessmentyear as year_last_assessed,
             taxvaluedollarcnt AS tax_value,
             taxamount AS tax_amount,
             fips as fed_code
@@ -42,8 +41,7 @@ def get_new_zillow_data():
             JOIN predictions_2017 USING (parcelid)
             JOIN propertylandusetype USING (propertylandusetypeid)
             WHERE transactiondate IS NOT NULL
-            AND propertylandusedesc IN("Single Family Residential","Inferred Single Family Residential")
-            AND transactiondate BETWEEN '2017-01-01' and '2017-12-31';
+            AND propertylandusedesc IN("Single Family Residential","Inferred Single Family Residential");
             '''
     #Export to csv
     df = pd.read_sql(query, get_connection('zillow'))
@@ -68,6 +66,7 @@ def optimize_types(df):
     # fips, yearbuilt, and bedrooms can be integers
     df["garage"] = df["garage"].astype(int)
     df["pool"] = df["pool"].astype(int)
+    df["lot_size"] = df["lot_size"].astype(int)
     df["fed_code"] = df["fed_code"].astype(int)
     df["bedrooms"] = df["bedrooms"].astype(int)
     df["bathrooms"] = df["bathrooms"].astype(int)
@@ -85,6 +84,7 @@ def handle_outliers(df):
     df=df[df.bathrooms <=6]
     df=df[df.bedrooms <=6]  
     df = df[df.tax_value < 2_000_000]
+    df = df[df.garage <=4]
     return df
 
 def wrangle_zillow():
@@ -170,6 +170,32 @@ def data_split(df, target):
     print(f'test -> {test.shape}')
     
     return train, validate, test
+
+def train_validate_test_split(df, target, seed=123):
+    '''
+    Cleanly splits data into train, validate, and test sets.
+    Takes as arguments:
+    dataframe, the name of the target variable, and an integer for setting a random seed.
+    Test is set to 20% of the original dataset, validate is 24% of the 
+    original dataset, and train is set to 56% of the original dataset. 
+    The function returns, in this order, train, validate and test dataframes. 
+    '''
+    
+    if target:
+        train_validate, test = train_test_split(df, test_size=0.2, 
+                                                random_state=seed, 
+                                                stratify=df[target])
+        train, validate = train_test_split(train_validate, test_size=0.3, 
+                                           random_state=seed,
+                                           stratify=train_validate[target])
+    else:
+        train_validate, test = train_test_split(df, test_size=0.2, 
+                                                random_state=seed)
+        train, validate = train_test_split(train_validate, test_size=0.3, 
+                                           random_state=seed)
+        
+    return train, validate, test
+
 
 ## TODO Encode categorical variables (and FIPS is a category so Fips to string to one-hot-encoding
 ## TODO Scale numeric columns
